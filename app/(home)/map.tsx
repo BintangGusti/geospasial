@@ -8,6 +8,9 @@ import {
   Modal,
   ScrollView,
   Dimensions,
+  PermissionsAndroid,
+  Platform,
+  Alert,
 } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { Picker } from '@react-native-picker/picker';
@@ -39,6 +42,35 @@ export default function MapsScreen() {
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  useEffect(() => {
+    async function requestPermissions() {
+      if (Platform.OS === 'android') {
+        try {
+          const grantedFine = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          );
+          const grantedCoarse = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+          );
+
+          if (
+            grantedFine !== PermissionsAndroid.RESULTS.GRANTED &&
+            grantedCoarse !== PermissionsAndroid.RESULTS.GRANTED
+          ) {
+            Alert.alert(
+              'Izin Ditolak',
+              'Aplikasi membutuhkan akses lokasi agar peta dapat ditampilkan.'
+            );
+          }
+        } catch (err) {
+          console.warn('Gagal meminta izin lokasi:', err);
+        }
+      }
+    }
+
+    requestPermissions();
+  }, []);
 
   useEffect(() => {
     const fetchKategori = async () => {
@@ -318,10 +350,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     left: 16,
-    right: 16,
     zIndex: 10,
-    flexDirection: 'column',
   },
+
   dropdownButton: {
     backgroundColor: '#fff',
     paddingVertical: 10,
@@ -365,14 +396,15 @@ const styles = StyleSheet.create({
   },
   layerButtonContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 10,
+    top: 50, // sebelumnya bottom
+    right: 16, // sebelumnya left
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 6,
     borderWidth: 1,
     borderColor: '#ccc',
   },
+
   layerButton: {
     flexDirection: 'row',
     alignItems: 'center',

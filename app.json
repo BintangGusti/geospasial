@@ -31,7 +31,13 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-        "permissions": ["ACCESS_FINE_LOCATION", "READ_MEDIA_IMAGES", "CAMERA"]
+        "permissions": [
+          "ACCESS_FINE_LOCATION",
+          "READ_MEDIA_IMAGES",
+          "CAMERA",
+          "INTERNET",
+          "ACCESS_COARSE_LOCATION"
+        ]
       },
       "package": "com.vadinsavin.LimeApp"
     },
