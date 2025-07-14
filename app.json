@@ -4,6 +4,7 @@
     "slug": "LimeApp",
     "version": "1.0.0",
     "scheme": "LimeApp",
+    "jsEngine": "jsc",
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -29,7 +30,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "permissions": ["ACCESS_FINE_LOCATION", "READ_MEDIA_IMAGES", "CAMERA"]
       },
       "package": "com.vadinsavin.LimeApp"
     },

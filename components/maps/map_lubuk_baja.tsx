@@ -4,8 +4,8 @@ import { Button, Modal, Text, TouchableOpacity, View, ScrollView } from 'react-n
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '~/lib/supabase';
 
-import ActiveRideSheet from '~/components/ActiveRideSheet';
-import SelectedScooterSheet from '~/components/SelectedScooterSheet';
+// import ActiveRideSheet from '~/components/ActiveRideSheet';
+// import SelectedScooterSheet from '~/components/SelectedScooterSheet';
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_KEY || '');
 
@@ -35,7 +35,7 @@ export default function MapLubukBaja() {
       maxLng = -Infinity,
       maxLat = -Infinity;
 
-    geojson.features.forEach((feature) => {
+    geojson.features.forEach((feature: { geometry: { coordinates: any; type: any } }) => {
       const { coordinates, type } = feature.geometry;
 
       if (type === 'Polygon') {
@@ -48,7 +48,7 @@ export default function MapLubukBaja() {
       }
 
       if (type === 'MultiPolygon') {
-        coordinates.forEach((polygon) => {
+        coordinates.forEach((polygon: [any, any][][]) => {
           polygon[0].forEach(([lng, lat]) => {
             minLng = Math.min(minLng, lng);
             minLat = Math.min(minLat, lat);
@@ -97,7 +97,7 @@ export default function MapLubukBaja() {
     fetchGeoData();
   }, []);
 
-  const handleFeaturePress = (event) => {
+  const handleFeaturePress = (event: { features: any }) => {
     const features = event.features;
     if (features && features.length > 0) {
       const feature = features[0];
@@ -236,9 +236,6 @@ export default function MapLubukBaja() {
           </View>
         </Modal>
       </View>
-
-      <SelectedScooterSheet />
-      <ActiveRideSheet />
     </>
   );
 }

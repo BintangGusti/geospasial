@@ -1,0 +1,97 @@
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { supabase } from '~/lib/supabase';
+
+export default function EditScreen() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    // Dapatkan user yang sedang login
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error('Gagal mendapatkan data pengguna:', userError);
+      setLoading(false);
+      return;
+    }
+
+    const userEmail = user.email;
+
+    // Ambil data rumah berdasarkan email pembuat
+    const { data, error } = await supabase
+      .from('gis_data_rumah')
+      .select('*')
+      .eq('dibuat_oleh_users', userEmail); // filter data milik user
+
+    if (error) {
+      console.error('Error fetching data:', error);
+    } else {
+      setData(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  const renderItem = ({ item }: any) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => router.push(`/Detail/edit/${item.id_rumah}`)}>
+      <Text style={styles.title}>{item.nama_pemilik}</Text>
+      <Text>Alamat: {item.alamat_rumah}</Text>
+      <Text>Status: {item.status_rumah}</Text>
+      <Text>Jumlah KK: {item.jumlah_kk}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      {loading ? (
+        <ActivityIndicator size="large" color="#4285F4" />
+      ) : data.length === 0 ? (
+        <Text style={{ textAlign: 'center', marginTop: 20 }}>
+          Belum ada data rumah yang Anda buat.
+        </Text>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id_rumah.toString()}
+          renderItem={renderItem}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  card: {
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#f2f2f2',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});

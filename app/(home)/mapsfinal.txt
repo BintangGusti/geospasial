@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import MapboxGL from '@rnmapbox/maps';
+import { Picker } from '@react-native-picker/picker';
+import { supabase } from '~/lib/supabase';
+
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_KEY || '');
+
+export default function MapsScreen() {
+  const [kecamatanList, setKecamatanList] = useState<string[]>([]);
+  const [selectedKecamatan, setSelectedKecamatan] = useState<string>('');
+  const [geoData, setGeoData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Ambil daftar kecamatan unik
+  useEffect(() => {
+    const fetchKecamatan = async () => {
+      const { data, error } = await supabase.from('distinct_kecamatan').select('*');
+
+      if (error) {
+        console.error('Gagal mengambil daftar kecamatan:', error);
+      } else {
+        const list = Array.from(
+          new Set(data.map((item) => item.kecamatan?.toLowerCase()).filter(Boolean))
+        );
+        setKecamatanList(list);
+      }
+    };
+
+    fetchKecamatan();
+  }, []);
+
+  // Ambil data GeoJSON berdasarkan kecamatan
+  useEffect(() => {
+    if (!selectedKecamatan) return;
+
+    const fetchGeoData = async () => {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from('maps_geodataset_mobile')
+        .select('id, geometry')
+        .ilike('kecamatan', selectedKecamatan);
+
+      if (error) {
+        console.error('Gagal mengambil geo data:', error);
+        setGeoData([]);
+      } else {
+        setGeoData(data || []);
+      }
+
+      setLoading(false);
+    };
+
+    fetchGeoData();
+  }, [selectedKecamatan]);
+
+  // Tentukan pusat kamera
+  const firstLocation = geoData[0];
+  const defaultCenter =
+    firstLocation?.geometry?.type === 'Point'
+      ? firstLocation.geometry.coordinates
+      : firstLocation?.geometry?.coordinates?.[0]?.[0] || [103.964386, 1.103325];
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>Pilih Kecamatan</Text>
+      <Picker
+        selectedValue={selectedKecamatan}
+        onValueChange={(itemValue) => setSelectedKecamatan(itemValue)}
+        style={styles.picker}>
+        <Picker.Item label="-- Pilih Kecamatan --" value="" />
+        {kecamatanList.map((kec) => (
+          <Picker.Item key={kec} label={kec} value={kec} />
+        ))}
+      </Picker>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#000" />
+      ) : (
+        <View style={styles.mapContainer}>
+          {!loading && geoData.length > 0 && (
+            <MapboxGL.MapView style={styles.map}>
+              <MapboxGL.Camera zoomLevel={12} centerCoordinate={defaultCenter} />
+
+              <MapboxGL.ShapeSource
+                id="geojson-source"
+                shape={{
+                  type: 'FeatureCollection',
+                  features: geoData
+                    .filter((loc) => loc.geometry)
+                    .map((loc) => ({
+                      type: 'Feature',
+                      geometry: loc.geometry,
+                      properties: {},
+                    })),
+                }}>
+                <MapboxGL.FillLayer
+                  id="geojson-fill"
+                  style={{ fillColor: 'blue', fillOpacity: 0.5 }}
+                />
+              </MapboxGL.ShapeSource>
+            </MapboxGL.MapView>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  picker: {
+    backgroundColor: '#f0f0f0',
+    marginBottom: 10,
+  },
+  mapContainer: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  map: {
+    flex: 1,
+  },
+});

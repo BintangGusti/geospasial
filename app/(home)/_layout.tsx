@@ -46,6 +46,43 @@ export default function HomeLayout() {
           }}
         />
 
+        {/* <Tabs.Screen
+          name="edit"
+          options={{
+            title: 'Edit',
+            tabBarIcon: ({ color, size = 28 }) => (
+              <Svg width={size} height={size * 1.1} viewBox="0 0 24 24" fill="none">
+                <Path d="M12 20h9" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+                <Path
+                  d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5Z"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            ),
+          }}
+        /> */}
+
+        <Tabs.Screen
+          name="data"
+          options={{
+            title: 'Data',
+            tabBarIcon: ({ color, size = 28 }) => (
+              <Svg width={size} height={size * 1.1} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M4 6h16M4 12h16M4 18h16"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            ),
+          }}
+        />
+
         <Tabs.Screen
           name="map"
           options={{
@@ -61,6 +98,31 @@ export default function HomeLayout() {
                   d="M12 16.36c2.337 0 4.231-1.91 4.231-4.267 0-2.358-1.894-4.267-4.231-4.267S7.769 9.735 7.769 12.093c0 2.357 1.894 4.267 4.231 4.267Z"
                   stroke="#ffffff"
                   strokeWidth={2}
+                />
+              </Svg>
+            ),
+          }}
+        />
+
+        <Tabs.Screen
+          name="riwayat"
+          options={{
+            title: 'Riwayat',
+            tabBarIcon: ({ color, size = 28 }) => (
+              <Svg width={size} height={size * 1.1} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 8v5l4 2"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Path
+                  d="M21 12a9 9 0 1 1-6.219-8.555"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </Svg>
             ),

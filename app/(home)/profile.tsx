@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  Switch,
-  Image,
-} from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Switch, Image } from 'react-native';
 import FeatherIcon from 'react-native-vector-icons/Feather';
 import { signOut } from '~/lib/auth';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 export default function Example() {
   const [form, setForm] = useState({
     emailNotifications: true,
@@ -25,7 +17,7 @@ export default function Example() {
     router.replace('/landingPage');
   };
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f8f8' }}>
+    <SafeAreaView style={styles.wrapper} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerAction}>
           <TouchableOpacity
@@ -273,5 +265,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     color: '#dc2626',
+  },
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
   },
 });

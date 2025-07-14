@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from './Button';
 
-import scooterImage from '~/assets/scooter.png';
 import { supabase } from '~/lib/supabase';
 import { useAuth } from '~/providers/AuthProvider';
 import { useRide } from '~/providers/RideProvider';

@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   StyleSheet,
@@ -7,17 +7,16 @@ import {
   View,
   TouchableOpacity,
   Image,
-  FlatList,
-  ScrollView, // Import ScrollView
+  ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '~/lib/supabase'; // Pastikan path ini benar
 
-// import MapComponent from "@/components/MapComponent";
 const screenWidth = Dimensions.get('window').width;
 
-// Define the Perumahan type
 interface Perumahan {
   id: string;
   kecamatan: string;
@@ -27,110 +26,57 @@ interface Perumahan {
   jumlahKK: number;
 }
 
-// Data perumahan sesuai format yang kamu minta
-const perumahanData = [
-  {
-    id: '1',
-    kecamatan: 'Nongsa',
-    kelurahan: 'Batu Besar',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '2',
-    kecamatan: 'Nongsa',
-    kelurahan: 'Batu Besar',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '3',
-    kecamatan: 'Nongsa',
-    kelurahan: 'Batu Besar',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '4',
-    kecamatan: 'Batam Kota',
-    kelurahan: 'Sungai Panas',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '5',
-    kecamatan: 'Batam Kota',
-    kelurahan: 'Sungai Panas',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '6',
-    kecamatan: 'Batam Kota',
-    kelurahan: 'Sungai Panas',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '7',
-    kecamatan: 'Sekupang',
-    kelurahan: 'Sungai Harapan',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '8',
-    kecamatan: 'Sekupang',
-    kelurahan: 'Sungai Harapan',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-  {
-    id: '9',
-    kecamatan: 'Sekupang',
-    kelurahan: 'Sungai Harapan',
-    name: 'Perumahan ARIRA GARDEN',
-    image: require('../../assets/images/perumahan.jpeg'),
-    jumlahKK: 30,
-  },
-];
-
-export default function JumlahRLH() {
+export default function JumlahUnitRumah() {
   const [kecamatan, setKecamatan] = useState<string | null>(null);
   const [kelurahan, setKelurahan] = useState<string | null>(null);
-  const [numColumns, setNumColumns] = useState(3);
+  const [unitRumahData, setUnitRumahData] = useState<Perumahan[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
-  const kecamatanData = [...new Set(perumahanData.map((item) => item.kecamatan))].map(
+  useEffect(() => {
+    const fetchUnitRumah = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.rpc('get_data_unit_rumah_detail_sp');
+
+      if (error) {
+        console.error('Error fetching unit rumah:', error);
+      } else {
+        const mappedData: Perumahan[] = data.map((item: any, index: number) => ({
+          id: index.toString(),
+          kecamatan: item.kecamatan,
+          kelurahan: item.kelurahan,
+          name: item.nama_perumahan,
+          image: item.photo_rumah
+            ? {
+                uri: `https://your-project-id.supabase.co/storage/v1/object/public/your-bucket-name/${item.photo_rumah}`,
+              }
+            : require('../../assets/images/perumahan.jpeg'),
+          jumlahKK: 1,
+        }));
+        setUnitRumahData(mappedData);
+      }
+      setLoading(false);
+    };
+
+    fetchUnitRumah();
+  }, []);
+
+  const kecamatanData = [...new Set(unitRumahData.map((item) => item.kecamatan))].map(
     (kecamatan) => ({ value: kecamatan, label: kecamatan })
   );
 
   const kelurahanData = kecamatan
     ? [
         ...new Set(
-          perumahanData.filter((item) => item.kecamatan === kecamatan).map((item) => item.kelurahan)
+          unitRumahData.filter((item) => item.kecamatan === kecamatan).map((item) => item.kelurahan)
         ),
       ].map((kelurahan) => ({ value: kelurahan, label: kelurahan }))
     : [];
 
-  const filteredPerumahan = perumahanData.filter((item) => {
-    if (!kecamatan && !kelurahan) {
-      return true;
-    }
-    if (!kecamatan) {
-      return item.kelurahan === kelurahan;
-    }
-    if (!kelurahan) {
-      return item.kecamatan === kecamatan;
-    }
+  const filteredPerumahan = unitRumahData.filter((item) => {
+    if (!kecamatan && !kelurahan) return true;
+    if (!kecamatan) return item.kelurahan === kelurahan;
+    if (!kelurahan) return item.kecamatan === kecamatan;
     return item.kecamatan === kecamatan && item.kelurahan === kelurahan;
   });
 
@@ -154,20 +100,15 @@ export default function JumlahRLH() {
 
   const groupedPerumahan = groupByKecamatan(filteredPerumahan);
 
-  // Combine static and dynamic sections into one data array
-  const flatListData = [
-    { type: 'dropdowns' },
-    ...groupedPerumahan.map((item) => ({ type: 'kecamatan', data: item })),
-  ];
-  function hasData(item: {
-    type: string;
-    data?: { kecamatan: string; perumahan: Perumahan[] };
-  }): item is {
-    type: string;
-    data: { kecamatan: string; perumahan: Perumahan[] };
-  } {
-    return (item as { data: any }).data !== undefined;
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={{ marginTop: 10 }}>Memuat data unit rumah...</Text>
+      </View>
+    );
   }
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -178,21 +119,7 @@ export default function JumlahRLH() {
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
 
-          <Text style={styles.title}>Jumlah Rumah Susun Sewa Pemerintah</Text>
-          <Text style={styles.label}>Peta Sebaran Rumah Layak Huni</Text>
-
-          <View style={styles.mapSmallWrapper}>
-            {/* <MapComponent
-              locations={[]} // Data lokasi kosong untuk peta (mungkin akan diisi dengan data di masa depan)
-              onMapLongPress={
-                (latitude, longitude) => console.log(latitude, longitude) // Menangani event long press pada peta
-              }
-              onPoiLongPress={
-                (name, latitude, longitude) =>
-                  console.log(name, latitude, longitude) // Menangani event long press pada POI (point of interest)
-              }
-            /> */}
-          </View>
+          <Text style={styles.title}>Jumlah Unit Rumah</Text>
           <View style={styles.dropdownContainer}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputRowLabel}>Kecamatan:</Text>
@@ -232,9 +159,7 @@ export default function JumlahRLH() {
               </View>
             </View>
 
-            <Text style={styles.totalText}>
-              Total: {filteredPerumahan.length} Rumah Susun Sewa Pemerintah di Seluruh Kota Batam
-            </Text>
+            <Text style={styles.totalText}>Total: {filteredPerumahan.length} Unit Rumah</Text>
           </View>
 
           {groupedPerumahan.map((item, index) => (
@@ -243,11 +168,7 @@ export default function JumlahRLH() {
               onPress={() => router.push(`/Detail/LokasiRumah`)}
               activeOpacity={1}>
               <Text style={styles.kecamatanHeader}>{item.kecamatan}</Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {item.perumahan.map((p) => (
                   <View key={p.id} style={styles.perumahanCard}>
                     <Image source={p.image} style={styles.image} resizeMode="cover" />
@@ -265,6 +186,7 @@ export default function JumlahRLH() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

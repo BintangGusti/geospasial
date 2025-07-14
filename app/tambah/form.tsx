@@ -1,0 +1,363 @@
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Image,
+} from 'react-native';
+import { supabase, uploadToBucket } from '~/lib/supabase';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
+import MapboxGL from '@rnmapbox/maps';
+import DropDownPicker from 'react-native-dropdown-picker';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import mime from 'mime';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+MapboxGL.setAccessToken('YOUR_MAPBOX_TOKEN');
+
+export default function TambahRumahScreen() {
+  const [loading, setLoading] = useState(false);
+  const [geometry, setGeometry] = useState<any>(null);
+  const [zoomLevel] = useState(15);
+
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    perumahan: '',
+    nama_pemilik: '',
+    alamat_rumah: '',
+    jumlah_kk: '',
+    rumah_sewa: '',
+  });
+
+  const [perumahanList, setPerumahanList] = useState<any[]>([]);
+  const [dropdownItems, setDropdownItems] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+
+  const [selectedKecamatan, setSelectedKecamatan] = useState('');
+  const [selectedKelurahan, setSelectedKelurahan] = useState('');
+
+  useEffect(() => {
+    fetchPerumahan();
+  }, []);
+
+  const fetchPerumahan = async () => {
+    const { data, error } = await supabase.from('gis_data_perumahan').select(`
+      id_perumahan,
+      nama_perumahan,
+      kecamatan_id,
+      kelurahan_id,
+      gis_data_kecamatan(kecamatan),
+      gis_data_kelurahan(kelurahan)
+    `);
+
+    if (error) {
+      console.error('Gagal mengambil data perumahan:', error);
+    } else {
+      setPerumahanList(data || []);
+      const dropdown = data?.map((p) => ({
+        label: p.nama_perumahan,
+        value: p.id_perumahan.toString(),
+      }));
+      setDropdownItems(dropdown);
+    }
+  };
+
+  const handleChange = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const ambilKoordinatUser = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin ditolak', 'Aplikasi memerlukan izin lokasi.');
+      return;
+    }
+
+    const lokasi = await Location.getCurrentPositionAsync({});
+    const point = {
+      type: 'Point',
+      coordinates: [lokasi.coords.longitude, lokasi.coords.latitude],
+    };
+    setGeometry(point);
+
+    Alert.alert(
+      'Koordinat berhasil diambil',
+      `Lng: ${point.coordinates[0]}, Lat: ${point.coordinates[1]}`
+    );
+  };
+
+  const pickAndUploadPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+      base64: false, // kita pakai FileSystem untuk baca base64
+    });
+
+    if (!result.canceled) {
+      try {
+        const fileUri = result.assets[0].uri;
+        const mimeType = result.assets[0].mimeType || 'image/jpeg';
+        const fileExt = mime.getExtension(mimeType) || 'jpg';
+        const fileName = `rumah_${Date.now()}.${fileExt}`;
+        const path = `rumah_photo/${fileName}`;
+
+        const base64File = await FileSystem.readAsStringAsync(fileUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const fileBuffer = Buffer.from(base64File, 'base64');
+
+        const { error } = await supabase.storage.from('media').upload(path, fileBuffer, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+        if (error) {
+          console.error('Upload error:', error);
+          Alert.alert('Upload Gagal', 'Foto gagal diunggah.');
+          return;
+        }
+
+        setPhotoUri(fileName); // hanya simpan nama file
+        Alert.alert('Upload Sukses', 'Foto berhasil diunggah.');
+      } catch (e) {
+        console.error('Upload Exception:', e);
+        Alert.alert('Error', 'Terjadi kesalahan saat membaca atau mengunggah file.');
+      }
+    }
+  };
+
+  const handleSubmit = async () => {
+    const currentUser = await supabase.auth.getUser();
+    const userEmail = currentUser.data.user?.email;
+
+    if (!geometry) {
+      Alert.alert('Koordinat belum diambil', 'Silakan ambil lokasi terlebih dahulu.');
+      return;
+    }
+
+    if (!photoUri) {
+      Alert.alert('Foto belum dipilih', 'Silakan upload foto rumah terlebih dahulu.');
+      return;
+    }
+
+    const geomText = `SRID=4326;POINT (${geometry.coordinates[0]} ${geometry.coordinates[1]})`;
+
+    const payload = {
+      data: {
+        nama_perumahan: (() => {
+          const selected = perumahanList.find((p) => p.id_perumahan.toString() === form.perumahan);
+          return selected?.nama_perumahan || null;
+        })(),
+        nama_pemilik: form.nama_pemilik,
+        alamat_rumah: form.alamat_rumah,
+        jumlah_kk: parseInt(form.jumlah_kk),
+        rumah_sewa: form.rumah_sewa === 'Ya',
+      },
+      geometry: geomText,
+      dibuat_pada: new Date().toISOString(),
+      disetujui: false,
+      ditolak: false,
+      dibuat_oleh_users: userEmail,
+      photo_rumah: `rumah_photo/${photoUri}`,
+    };
+
+    setLoading(true);
+    const { error } = await supabase.from('gis_data_addrequest').insert(payload);
+    setLoading(false);
+
+    if (error) {
+      console.error('Insert error:', error);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat menambahkan data.');
+    } else {
+      Alert.alert('Sukses', 'Data berhasil diajukan.');
+      resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setForm({
+      perumahan: '',
+      nama_pemilik: '',
+      alamat_rumah: '',
+      jumlah_kk: '',
+      rumah_sewa: '',
+    });
+    setSelectedKecamatan('');
+    setSelectedKelurahan('');
+    setGeometry(null);
+    setPhotoUri(null);
+  };
+
+  const centerCoordinate = geometry?.coordinates || [103.964386, 1.103325];
+
+  return (
+    <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}>
+        <View style={styles.container}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}>
+            <Text style={styles.title}>Tambah Data Rumah</Text>
+
+            {[
+              ['Nama Pemilik', 'nama_pemilik'],
+              ['Alamat Rumah', 'alamat_rumah'],
+              ['Jumlah KK', 'jumlah_kk'],
+              ['Rumah Sewa (Ya/Tidak)', 'rumah_sewa'],
+            ].map(([label, key]) => (
+              <View key={key} style={styles.inputGroup}>
+                <Text style={styles.label}>{label}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form[key]}
+                  onChangeText={(val) => handleChange(key, val)}
+                />
+              </View>
+            ))}
+
+            <View style={{ zIndex: 1000, marginBottom: 12 }}>
+              <Text style={styles.label}>Perumahan</Text>
+              <DropDownPicker
+                open={open}
+                setOpen={setOpen}
+                items={dropdownItems}
+                setItems={setDropdownItems}
+                value={form.perumahan}
+                setValue={(callback) => {
+                  const value = callback(form.perumahan);
+                  handleChange('perumahan', value);
+                  const selected = perumahanList.find((p) => p.id_perumahan.toString() === value);
+                  setSelectedKecamatan(selected?.gis_data_kecamatan?.kecamatan || '');
+                  setSelectedKelurahan(selected?.gis_data_kelurahan?.kelurahan || '');
+                }}
+                placeholder="Cari Perumahan..."
+                searchable
+                listMode="MODAL"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Kecamatan</Text>
+              <TextInput style={styles.input} value={selectedKecamatan} editable={false} />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Kelurahan</Text>
+              <TextInput style={styles.input} value={selectedKelurahan} editable={false} />
+            </View>
+
+            {/* Upload Foto */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Upload Foto Rumah</Text>
+              <TouchableOpacity style={styles.coordButton} onPress={pickAndUploadPhoto}>
+                <Ionicons name="image-outline" size={20} color="white" />
+                <Text style={styles.coordButtonText}>
+                  {photoUri ? 'Foto Dipilih' : 'Pilih Foto'}
+                </Text>
+              </TouchableOpacity>
+              {photoUri && (
+                <Image
+                  source={{
+                    uri: supabase.storage.from('media').getPublicUrl(`rumah_photo/${photoUri}`).data
+                      .publicUrl,
+                  }}
+                  style={{ width: '100%', height: 200, marginTop: 10, borderRadius: 8 }}
+                />
+              )}
+            </View>
+
+            {/* Ambil Koordinat */}
+            <TouchableOpacity style={styles.coordButton} onPress={ambilKoordinatUser}>
+              <Ionicons name="location-sharp" size={20} color="white" />
+              <Text style={styles.coordButtonText}>
+                {geometry ? 'Koordinat Diambil' : 'Ambil Lokasi Saya'}
+              </Text>
+            </TouchableOpacity>
+
+            {geometry && (
+              <View style={styles.mapContainer}>
+                <MapboxGL.MapView style={styles.map} logoEnabled={false}>
+                  <MapboxGL.Camera centerCoordinate={centerCoordinate} zoomLevel={zoomLevel} />
+                  <MapboxGL.PointAnnotation id="point" coordinate={centerCoordinate} />
+                </MapboxGL.MapView>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Simpan</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: 'gray' }]}
+              onPress={resetForm}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  scrollContent: { paddingBottom: 120 },
+  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+  inputGroup: { marginBottom: 12 },
+  label: { marginBottom: 4, fontSize: 14, color: '#333' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+  },
+  coordButton: {
+    flexDirection: 'row',
+    backgroundColor: '#1e88e5',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  coordButtonText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: 'bold',
+  },
+  button: {
+    backgroundColor: '#1e88e5',
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#fff', fontWeight: 'bold' },
+  mapContainer: {
+    height: 250,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  map: { flex: 1 },
+});

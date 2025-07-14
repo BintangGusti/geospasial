@@ -83,10 +83,10 @@ const gridData = [
   },
   {
     id: '7',
-    title: 'Rumah Susun Sewa Pemerintah',
+    title: 'Jumlah Unit Rumah',
     Icon: HomeIcon,
     color: '#B255A7',
-    route: '/Detail/JumlahRumahSusunPemerintah',
+    route: '/Detail/JumlahUnitRumah',
   },
   {
     id: '8',
