@@ -69,14 +69,10 @@ export default function DetailRumahScreen() {
           <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#1565c0' }}>
             📋 Data yang Anda ajukan untuk perubahan:
           </Text>
+          {renderPendingInput('Nama Perumahan', 'nama_perumahan')}
           {renderPendingInput('Nama Pemilik', 'nama_pemilik')}
-          {renderPendingInput('Status Rumah', 'status_rumah')}
           {renderPendingInput('Alamat Rumah', 'alamat_rumah')}
-          {renderPendingInput('Status Luas Rumah', 'status_luas')}
           {renderPendingInput('Jumlah KK', 'jumlah_kk')}
-          {renderPendingInput('Nilai Kesehatan', 'nilai_kesehatan')}
-          {renderPendingInput('Nilai Keselamatan', 'nilai_keselamatan')}
-          {renderPendingInput('Nilai Komponen', 'nilai_komponen')}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Rumah</Text>
             <Text style={[styles.input, { backgroundColor: '#f0f0f0', color: '#555' }]}>

@@ -20,12 +20,21 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import DropDownPicker from 'react-native-dropdown-picker';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
 
 MapboxGL.setAccessToken(
   'sk.eyJ1IjoidGl5b3NhcHV0cmE4NCIsImEiOiJjbWJ5endlYnMxM3N6MmtzNnlqbXdnb281In0.zB0jVrNstagQSA8zhglAoQ'
 );
+
+const NON_EDITABLE_FIELDS = [
+  'status_rumah',
+  'status_luas',
+  'nilai_kesehatan',
+  'nilai_keselamatan',
+  'nilai_komponen',
+];
 
 export default function DetailRumahScreen() {
   const { id } = useLocalSearchParams();
@@ -48,6 +57,29 @@ export default function DetailRumahScreen() {
   });
   const [pendingUpdate, setPendingUpdate] = useState(false);
   const router = useRouter();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [perumahanItems, setPerumahanItems] = useState([]);
+  const [perumahanList, setPerumahanList] = useState([]);
+
+  useEffect(() => {
+    fetchPerumahan();
+  }, []);
+
+  const fetchPerumahan = async () => {
+    const { data, error } = await supabase.from('gis_data_perumahan').select(`
+      id_perumahan,
+      nama_perumahan
+    `);
+
+    if (!error) {
+      setPerumahanList(data);
+      const items = data.map((item) => ({
+        label: item.nama_perumahan,
+        value: item.id_perumahan.toString(),
+      }));
+      setPerumahanItems(items);
+    }
+  };
 
   const checkUpdateStatus = async () => {
     const user = await supabase.auth.getUser();
@@ -80,7 +112,17 @@ export default function DetailRumahScreen() {
     try {
       const { data, error } = await supabase
         .from('gis_data_rumah')
-        .select('*, maps_geodataset:geo_id (geometry)')
+        .select(
+          `
+    *,
+    maps_geodataset:geo_id (geometry),
+    gis_data_perumahan:nama_perumahan_id (
+      nama_perumahan,
+      kecamatan: kecamatan_id (kecamatan),
+      kelurahan: kelurahan_id (kelurahan)
+    )
+  `
+        )
         .eq('id_rumah', id)
         .single();
 
@@ -299,12 +341,7 @@ export default function DetailRumahScreen() {
     const formParsed = {
       nama_pemilik: formEdit.nama_pemilik,
       alamat_rumah: formEdit.alamat_rumah,
-      status_rumah: formEdit.status_rumah,
       jumlah_kk: parseInt(formEdit.jumlah_kk),
-      nilai_kesehatan: parseInt(formEdit.nilai_kesehatan),
-      nilai_keselamatan: parseInt(formEdit.nilai_keselamatan),
-      nilai_komponen: parseInt(formEdit.nilai_komponen),
-      status_luas: formEdit.status_luas,
       rumah_sewa: formEdit.rumah_sewa === 'Ya',
     };
 
@@ -312,16 +349,9 @@ export default function DetailRumahScreen() {
       diffData.nama_pemilik = formParsed.nama_pemilik;
     if (formParsed.alamat_rumah !== rumah.alamat_rumah)
       diffData.alamat_rumah = formParsed.alamat_rumah;
-    if (formParsed.status_rumah !== rumah.status_rumah)
-      diffData.status_rumah = formParsed.status_rumah;
+
     if (formParsed.jumlah_kk !== rumah.jumlah_kk) diffData.jumlah_kk = formParsed.jumlah_kk;
-    if (formParsed.nilai_kesehatan !== rumah.nilai_kesehatan)
-      diffData.nilai_kesehatan = formParsed.nilai_kesehatan;
-    if (formParsed.nilai_keselamatan !== rumah.nilai_keselamatan)
-      diffData.nilai_keselamatan = formParsed.nilai_keselamatan;
-    if (formParsed.nilai_komponen !== rumah.nilai_komponen)
-      diffData.nilai_komponen = formParsed.nilai_komponen;
-    if (formParsed.status_luas !== rumah.status_luas) diffData.status_luas = formParsed.status_luas;
+
     if (formParsed.rumah_sewa !== rumah.rumah_sewa) diffData.rumah_sewa = formParsed.rumah_sewa;
 
     // CEK: Jika tidak ada perubahan data & foto & koordinat, batalkan
@@ -380,19 +410,34 @@ export default function DetailRumahScreen() {
     }
   };
 
-  const renderInput = (label: string, field: string) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={isEditMode ? formEdit[field] : rumah[field]?.toString() || ''}
-        editable={isEditMode}
-        onChangeText={(v) => {
-          if (isEditMode) setFormEdit({ ...formEdit, [field]: v });
-        }}
-      />
-    </View>
-  );
+  const renderInput = (label: string, field: string) => {
+    const isNonEditableField = NON_EDITABLE_FIELDS.includes(field);
+    const isEditable = isEditMode && !isNonEditableField;
+
+    return (
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{label}</Text>
+        <TextInput
+          style={[
+            styles.input,
+            isEditMode &&
+              isNonEditableField && {
+                backgroundColor: '#e0e0e0',
+                color: '#999',
+              },
+          ]}
+          value={isEditMode ? formEdit[field]?.toString() || '' : rumah[field]?.toString() || ''}
+          editable={isEditable}
+          onChangeText={(v) => {
+            if (isEditable) setFormEdit({ ...formEdit, [field]: v });
+          }}
+        />
+        {isEditMode && isNonEditableField && (
+          <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>* Tidak dapat diedit</Text>
+        )}
+      </View>
+    );
+  };
 
   if (loading) return <ActivityIndicator style={{ marginTop: 20 }} />;
   if (!rumah) {
@@ -435,6 +480,41 @@ export default function DetailRumahScreen() {
         {renderInput('Alamat Rumah', 'alamat_rumah')}
         {renderInput('Status Luas Rumah', 'status_luas')}
         {renderInput('Jumlah KK', 'jumlah_kk')}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Nama Perumahan</Text>
+          {isEditMode ? (
+            <DropDownPicker
+              open={dropdownOpen}
+              setOpen={setDropdownOpen}
+              value={formEdit.perumahan}
+              setValue={(valFn) =>
+                setFormEdit((prev) => ({
+                  ...prev,
+                  perumahan: valFn(prev.perumahan),
+                }))
+              }
+              items={perumahanItems}
+              setItems={setPerumahanItems}
+              placeholder="Pilih Perumahan"
+              listMode="MODAL"
+              zIndex={1000}
+              zIndexInverse={1000}
+            />
+          ) : (
+            <Text style={styles.input}>{rumah?.gis_data_perumahan?.nama_perumahan || '-'}</Text>
+          )}
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Kecamatan</Text>
+          <Text style={styles.input}>{rumah?.gis_data_perumahan?.kecamatan?.kecamatan || '-'}</Text>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Kelurahan</Text>
+          <Text style={styles.input}>{rumah?.gis_data_perumahan?.kelurahan?.kelurahan || '-'}</Text>
+        </View>
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Rumah</Text>
           {isEditMode ? (

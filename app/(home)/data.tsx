@@ -37,7 +37,16 @@ export default function PengajuanScreen() {
       // Ambil semua rumah milik user
       const { data: rumahData } = await supabase
         .from('gis_data_rumah')
-        .select('*')
+        .select(
+          `
+    *,
+    gis_data_perumahan: nama_perumahan_id (
+      nama_perumahan,
+      kecamatan: kecamatan_id (kecamatan),
+      kelurahan: kelurahan_id (kelurahan)
+    )
+  `
+        )
         .eq('dibuat_oleh_users', userEmail)
         .order('created_at', { ascending: false });
 
@@ -90,7 +99,9 @@ export default function PengajuanScreen() {
           <Card style={[styles.card, { borderColor: statusColor, borderWidth: 1 }]}>
             <Card.Content>
               <Text style={styles.cardTitle}>{item.nama_pemilik}</Text>
-              <Text style={styles.cardText}>🏠 Status Rumah: {item.status_rumah}</Text>
+              <Text style={styles.cardText}>
+                🏠 Nama Perumahan: {item.gis_data_perumahan?.nama_perumahan}
+              </Text>
               <Text style={styles.cardText}>📍 Alamat: {item.alamat_rumah}</Text>
               <Text style={styles.cardText}>👥 Jumlah KK: {item.jumlah_kk}</Text>
               <Text style={styles.cardText}>🧱 Rumah: {status}</Text>
