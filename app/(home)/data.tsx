@@ -117,11 +117,15 @@ export default function PengajuanScreen() {
 
   return (
     <SafeAreaView style={styles.wrapper} edges={['top']}>
+      <Text style={styles.heading}>Data Rumah Anda</Text>
+
       {loading ? (
         <ActivityIndicator size="large" color="#1e88e5" style={{ marginTop: 20 }} />
       ) : dataRumah.length === 0 ? (
         <Card style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Tidak ada data rumah.</Text>
+          <Text style={styles.emptyText}>
+            Tidak ada data rumah.Tekan Tombol di Bawah Untuk Melakukan Pengajuan Rumah Anda Sendiri.
+          </Text>
         </Card>
       ) : (
         <FlatList
@@ -185,5 +189,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
+  },
+
+  heading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00050aff',
+    marginTop: 20,
+    marginBottom: 10,
+    marginHorizontal: 16,
   },
 });

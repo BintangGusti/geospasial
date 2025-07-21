@@ -24,9 +24,8 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
 
-MapboxGL.setAccessToken(
-  'sk.eyJ1IjoidGl5b3NhcHV0cmE4NCIsImEiOiJjbWJ5endlYnMxM3N6MmtzNnlqbXdnb281In0.zB0jVrNstagQSA8zhglAoQ'
-);
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_KEY || '');
+MapboxGL.setTelemetryEnabled(false);
 
 const NON_EDITABLE_FIELDS = [
   'status_rumah',

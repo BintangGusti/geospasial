@@ -6,19 +6,30 @@ import {
   ActivityIndicator,
   FlatList,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { Card } from 'react-native-paper';
 import { supabase } from '~/lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInUp,
+  BounceIn,
+  BounceOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PengajuanScreen() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<'menunggu' | 'disetujui' | 'ditolak'>('menunggu');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,17 +75,25 @@ export default function PengajuanScreen() {
         key={item.id}
         entering={FadeInUp.delay(index * 100)}
         style={{ marginBottom: 16 }}>
-        <Card style={[styles.card, { borderColor: statusColor, borderWidth: 1 }]}>
-          <Card.Content>
-            <Text style={styles.cardTitle}>{content?.nama_pemilik}</Text>
-            <Text style={styles.cardText}>📍Alamat Rumah: {content?.alamat_rumah?.alamat}</Text>
-            <Text style={styles.cardText}>🏠Status Rumah: {content?.status_rumah}</Text>
-            <Text style={styles.cardText}>👥Jumlah KK: {content?.jumlah_kk}</Text>
-          </Card.Content>
-          <Card.Actions>
-            <Text style={[styles.cardStatus, { color: statusColor }]}>{statusText}</Text>
-          </Card.Actions>
-        </Card>
+        <TouchableOpacity
+          onPress={() => {
+            setSelectedItem(item);
+            setModalVisible(true);
+          }}>
+          <Card style={[styles.card, { borderColor: statusColor, borderWidth: 1 }]}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>{content?.nama_pemilik}</Text>
+              <Text style={styles.cardText}>📍Alamat Rumah: {content?.alamat_rumah}</Text>
+              <Text style={styles.cardText}>
+                🏠Status Rumah: {content?.rumah_sewa ? 'Sewa' : 'Milik Sendiri'}
+              </Text>
+              <Text style={styles.cardText}>👥Jumlah KK: {content?.jumlah_kk}</Text>
+            </Card.Content>
+            <Card.Actions>
+              <Text style={[styles.cardStatus, { color: statusColor }]}>{statusText}</Text>
+            </Card.Actions>
+          </Card>
+        </TouchableOpacity>
       </Animated.View>
     );
   };
@@ -121,7 +140,7 @@ export default function PengajuanScreen() {
         <ActivityIndicator size="large" color="#1e88e5" style={{ marginTop: 20 }} />
       ) : filteredData.length === 0 ? (
         <Card style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Belum ada data.</Text>
+          <Text style={styles.emptyText}>Tidak ada data pengajuan.</Text>
         </Card>
       ) : (
         <FlatList
@@ -130,6 +149,57 @@ export default function PengajuanScreen() {
           renderItem={({ item, index }) => renderCard(item, index)}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         />
+      )}
+
+      {selectedItem && (
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>📄 Detail Pengajuan</Text>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalLabel}>
+                  👤 Nama Pemilik:{' '}
+                  <Text style={styles.modalValue}>{selectedItem?.data?.nama_pemilik}</Text>
+                </Text>
+
+                <Text style={styles.modalLabel}>
+                  📍 Alamat:{' '}
+                  <Text style={styles.modalValue}>{selectedItem?.data?.alamat_rumah}</Text>
+                </Text>
+
+                <Text style={styles.modalLabel}>
+                  🏠 Status Rumah:{' '}
+                  <Text style={styles.modalValue}>
+                    {selectedItem?.data?.rumah_sewa ? 'Sewa' : 'Milik Sendiri'}
+                  </Text>
+                </Text>
+
+                <Text style={styles.modalLabel}>
+                  👥 Jumlah KK:{' '}
+                  <Text style={styles.modalValue}>{selectedItem?.data?.jumlah_kk}</Text>
+                </Text>
+
+                <Text style={styles.modalLabel}>
+                  🏘️ Nama Perumahan:{' '}
+                  <Text style={styles.modalValue}>{selectedItem?.data?.nama_perumahan}</Text>
+                </Text>
+
+                {/* Tambahkan field lain jika ada */}
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+                <Text style={styles.modalCloseText}>Tutup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* FAB - Tambah Data */}
@@ -217,5 +287,53 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3.5,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#1e88e5',
+    textAlign: 'center',
+  },
+  modalContent: {
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontWeight: '600',
+    color: '#444',
+    marginTop: 10,
+  },
+  modalValue: {
+    color: '#222',
+    fontSize: 14,
+    fontWeight: 'normal',
+  },
+  modalCloseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1e88e5',
+    borderRadius: 8,
+    paddingVertical: 10,
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });

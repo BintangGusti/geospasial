@@ -22,7 +22,8 @@ import * as FileSystem from 'expo-file-system';
 import mime from 'mime';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-MapboxGL.setAccessToken('YOUR_MAPBOX_TOKEN');
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_KEY || '');
+MapboxGL.setTelemetryEnabled(false);
 
 export default function TambahRumahScreen() {
   const [loading, setLoading] = useState(false);
@@ -211,7 +212,7 @@ export default function TambahRumahScreen() {
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.title}>Tambah Data Rumah</Text>
+            <Text style={styles.title}>Pengajuan Data Rumah Baru</Text>
 
             {[
               ['Nama Pemilik', 'nama_pemilik'],
@@ -301,14 +302,14 @@ export default function TambahRumahScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Simpan</Text>
+                <Text style={styles.buttonText}>Ajukan</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.button, { backgroundColor: 'gray' }]}
               onPress={resetForm}>
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text style={styles.buttonText}>Batalkan</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

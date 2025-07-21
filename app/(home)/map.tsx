@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,10 @@ import {
 import MapboxGL from '@rnmapbox/maps';
 import { Picker } from '@react-native-picker/picker';
 import { supabase } from '~/lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_KEY || '');
+MapboxGL.setTelemetryEnabled(false);
 
 const PROPERTY_LABELS: Record<string, string> = {
   RW: 'RW',
@@ -42,47 +44,62 @@ export default function MapsScreen() {
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    async function requestPermissions() {
-      if (Platform.OS === 'android') {
-        try {
-          const grantedFine = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-          );
-          const grantedCoarse = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
-          );
+  // useEffect(() => {
+  //   async function requestPermissions() {
+  //     if (Platform.OS === 'android') {
+  //       try {
+  //         const grantedFine = await PermissionsAndroid.request(
+  //           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+  //         );
+  //         const grantedCoarse = await PermissionsAndroid.request(
+  //           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+  //         );
 
-          if (
-            grantedFine !== PermissionsAndroid.RESULTS.GRANTED &&
-            grantedCoarse !== PermissionsAndroid.RESULTS.GRANTED
-          ) {
-            Alert.alert(
-              'Izin Ditolak',
-              'Aplikasi membutuhkan akses lokasi agar peta dapat ditampilkan.'
-            );
-          }
-        } catch (err) {
-          console.warn('Gagal meminta izin lokasi:', err);
+  //         if (
+  //           grantedFine !== PermissionsAndroid.RESULTS.GRANTED &&
+  //           grantedCoarse !== PermissionsAndroid.RESULTS.GRANTED
+  //         ) {
+  //           Alert.alert(
+  //             'Izin Ditolak',
+  //             'Aplikasi membutuhkan akses lokasi agar peta dapat ditampilkan.'
+  //           );
+  //         }
+  //       } catch (err) {
+  //         console.warn('Gagal meminta izin lokasi:', err);
+  //       }
+  //     }
+  //   }
+
+  //   requestPermissions();
+  // }, []);
+
+  const handleOpenModal = (item) => {
+    setSelectedItem(item);
+    setModalVisible(true);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchKategori = async () => {
+        const { data, error } = await supabase
+          .from('distinct_kategori_maps_geodataset')
+          .select('*');
+
+        if (error) {
+          console.error('Gagal mengambil kategori:', error);
+          return;
         }
-      }
-    }
 
-    requestPermissions();
-  }, []);
+        const list = Array.from(new Set(data.map((item) => item.kategori).filter(Boolean)));
+        setKategoriList(list);
+      };
 
-  useEffect(() => {
-    const fetchKategori = async () => {
-      const { data, error } = await supabase.from('distinct_kategori_maps_geodataset').select('*');
-
-      if (error) return console.error('Gagal mengambil kategori:', error);
-
-      const list = Array.from(new Set(data.map((item) => item.kategori).filter(Boolean)));
-      setKategoriList(list);
-    };
-    fetchKategori();
-  }, []);
+      fetchKategori();
+    }, [])
+  );
 
   useEffect(() => {
     if (selectedKategori === 'Unit Rumah') {
@@ -168,7 +185,7 @@ export default function MapsScreen() {
   return (
     <View style={styles.container}>
       <MapboxGL.MapView style={styles.map} styleURL={mapStyle}>
-        {geoData.length > 0 && (
+        {geoData.length > 0 ? (
           <MapboxGL.Camera
             bounds={{
               ...getBounds(),
@@ -177,6 +194,11 @@ export default function MapsScreen() {
               paddingLeft: 20,
               paddingRight: 20,
             }}
+          />
+        ) : (
+          <MapboxGL.Camera
+            zoomLevel={11}
+            centerCoordinate={[104.0305, 1.1069]} // Koordinat pusat Kota Batam
           />
         )}
 
@@ -258,7 +280,7 @@ export default function MapsScreen() {
           <View style={styles.dropdownList}>
             {[
               { name: 'Street', value: MapboxGL.StyleURL.Street },
-              { name: 'Satellite', value: MapboxGL.StyleURL.Satellite },
+              { name: 'Satellite', value: MapboxGL.StyleURL.SatelliteStreet },
               { name: 'Dark', value: MapboxGL.StyleURL.Dark },
             ].map((style) => (
               <TouchableOpacity
@@ -298,6 +320,7 @@ export default function MapsScreen() {
           <View style={styles.detailContainer}>
             <ScrollView>
               <Text style={styles.detailTitle}>Detail Data</Text>
+
               {selectedFeature && (
                 <>
                   <Text>
