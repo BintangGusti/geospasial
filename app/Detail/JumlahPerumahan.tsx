@@ -125,7 +125,7 @@ export default function JumlahRLH() {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Jumlah Perumahan</Text>
+        <Text style={styles.title}>Jumlah Perumaan</Text>
 
         <View style={styles.dropdownContainer}>
           <View style={styles.inputGroup}>
